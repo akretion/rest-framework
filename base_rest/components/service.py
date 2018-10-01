@@ -8,13 +8,11 @@ import logging
 import textwrap
 from collections import OrderedDict
 
+from openerp.addons.component.core import AbstractComponent
+from openerp.exceptions import UserError, ValidationError
+from openerp.http import request
+from openerp.tools.translate import _
 from werkzeug.exceptions import NotFound
-
-from odoo.exceptions import UserError, ValidationError
-from odoo.http import request
-from odoo.tools.translate import _
-
-from odoo.addons.component.core import AbstractComponent
 
 from ..core import _rest_services_databases
 from ..tools import cerberus_to_json

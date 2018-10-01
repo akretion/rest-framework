@@ -8,22 +8,24 @@
                 <meta name="generator" content="Odoo OpenAPI"/>
                 <meta name="description" content="Odoo OpenAPI UI"/>
 
-                <script type="text/javascript">
-                    odoo.session_info = {
-                    is_superuser:<t t-esc="json.dumps(request.env.user._is_superuser())"/>,
-                    is_frontend: true,
-                    };
-                </script>
 
                 <t t-call-assets="web.assets_common" t-js="false"/>
-                <t t-call-assets="web.assets_frontend" t-js="false"/>
+
+                <script type="text/javascript">
+                    odoo.define('web.csrf', function (require) {
+                        var token = "<t t-esc="request.csrf_token(None)"/>";
+                        require('web.core').csrf_token = token;
+                        require('qweb').default_dict.csrf_token = token;
+                    });
+                    odoo.db_info = <t t-raw="db_info"/>;
+                </script>
+
                 <t t-call-assets="base_rest.assets_swagger" t-js="false"/>
                 <link href="https://fonts.googleapis.com/css?family=Open+Sans:400,700|Source+Code+Pro:300,600|Titillium+Web:400,600,700" rel="stylesheet"/>
                 <link rel="icon" type="image/png" href="/base_rest/static/lib/swagger-ui-3.17.0/favicon-32x32.png" sizes="32x32"/>
                 <link rel="icon" type="image/png" href="/base_rest/static/lib/swagger-ui-3.17.0/favicon-16x16.png" sizes="16x16"/>
 
                 <t t-call-assets="web.assets_common" t-css="false"/>
-                <t t-call-assets="web.assets_frontend" t-css="false"/>
                 <t t-call-assets="base_rest.assets_swagger" t-css="false"/>
             </t>
             <t t-set="head" t-value="head"/>
@@ -31,7 +33,6 @@
 
         <body>
             <div id="swagger-ui"></div>
-
             <script>
                  odoo.define('base_rest.swagger', function (require) {
                         var SwaggerUi = require('base_rest.swagger_ui');

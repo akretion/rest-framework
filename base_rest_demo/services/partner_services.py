@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 # Copyright 2018 ACSONE SA/NV
-# License LGPL-3.0 or later (http://www.gnu.org/licenses/lgpl).
-from odoo.addons.base_rest.components.service import to_bool, to_int
-from odoo.addons.component.core import Component
+# License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl).
+from openerp.addons.component.core import Component
+
+from openerp.addons.base_rest.components.service import to_int, to_bool
 
 
 class PartnerService(Component):

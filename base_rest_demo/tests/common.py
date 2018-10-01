@@ -5,9 +5,9 @@
 import json
 import os
 
-from odoo.addons.base_rest.controllers.main import _PseudoCollection
-from odoo.addons.base_rest.tests.common import BaseRestCase
-from odoo.addons.component.core import WorkContext
+from openerp.addons.base_rest.controllers.main import _PseudoCollection
+from openerp.addons.base_rest.tests.common import BaseRestCase
+from openerp.addons.component.core import WorkContext
 
 DATA_DIR = os.path.join(os.path.realpath(os.path.dirname(__file__)), "data")
 

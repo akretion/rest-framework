@@ -10,28 +10,13 @@ import logging
 import sys
 import traceback
 from collections import defaultdict
-
-from werkzeug.exceptions import (
-    BadRequest,
-    Forbidden,
-    HTTPException,
-    InternalServerError,
-    NotFound,
-    Unauthorized,
-)
+from openerp.exceptions import (
+    UserError, MissingError, AccessError, AccessDenied, ValidationError)
+from openerp.http import HttpRequest, Root, request, SessionExpiredException
+from openerp.tools.config import config
+from werkzeug.exceptions import BadRequest, NotFound, Forbidden, \
+    InternalServerError, HTTPException, Unauthorized
 from werkzeug.utils import escape
-
-import odoo
-from odoo.exceptions import (
-    AccessDenied,
-    AccessError,
-    MissingError,
-    UserError,
-    ValidationError,
-)
-from odoo.http import HttpRequest, Root, SessionExpiredException, request
-from odoo.tools.config import config
-
 from .core import _rest_services_databases
 
 _logger = logging.getLogger(__name__)
@@ -128,7 +113,7 @@ class HttpRestRequest(HttpRequest):
         parsed_accepted_langs = parse_accept_language(accepted_langs)
         installed_locale_langs = set()
         installed_locale_by_lang = defaultdict(list)
-        for lang_code, _name in self.env["res.lang"].get_installed():
+        for lang_code, name in self.env['res.lang'].sudo().get_installed():
             installed_locale_langs.add(lang_code)
             installed_locale_by_lang[lang_code.split("_")[0]].append(lang_code)
 
@@ -148,11 +133,11 @@ class HttpRestRequest(HttpRequest):
                     locale = locales[0]
             if locale:
                 # reset the context to put our new lang.
-                context = dict(self._context)
-                context["lang"] = locale
+                context = dict(self.context)
+                context['lang'] = locale
                 # the setter defiend in odoo.http.WebRequest reset the env
                 # when setting a new context
-                self.context = context
+                self.session.context = context
                 break
 
     def _handle_exception(self, exception):

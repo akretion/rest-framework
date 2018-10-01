@@ -3,12 +3,11 @@
 # License LGPL-3.0 or later (http://www.gnu.org/licenses/lgpl).
 import base64
 
-from odoo import _
-from odoo.exceptions import MissingError
-from odoo.http import request
-
-from odoo.addons.base_rest.components.service import skip_secure_response
-from odoo.addons.component.core import Component
+from openerp import _
+from openerp.exceptions import MissingError
+from openerp.addons.base_rest.components.service import skip_secure_response
+from openerp.addons.component.core import Component
+from openerp.http import request
 
 
 class PartnerImageService(Component):

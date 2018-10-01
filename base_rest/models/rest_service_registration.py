@@ -8,12 +8,11 @@ REST Service Registy Builder
 
 Register available REST services at the build of a registry.
 
-This code is inspired by ``odoo.addons.component.builder.ComponentBuilder``
+This code is inspired by ``openerp.addons.component.builder.ComponentBuilder``
 
 """
-import odoo
-from odoo import api, http, models
-
+import openerp
+from openerp import api, models, http
 from ..core import (
     RestServicesRegistry,
     _rest_controllers_per_module,
@@ -35,21 +34,22 @@ class RestServiceRegistation(models.AbstractModel):
     _name = "rest.service.registration"
     _description = "REST Services Registration Model"
 
-    @api.model_cr
-    def _register_hook(self):
+    def _register_hook(self, cr):
         # This method is called by Odoo when the registry is built,
         # so in case the registry is rebuilt (cache invalidation, ...),
         # we have to to rebuild the registry. We use a new
         # registry so we have an empty cache and we'll add services in it.
-        services_registry = self._init_global_registry()
-        self.build_registry(services_registry)
-        # we also have to remove the RestController from the
-        # controller_per_module registry since it's an abstract controller
-        controllers = http.controllers_per_module["base_rest"]
-        controllers = [
-            (name, cls) for name, cls in controllers if "RestController" not in name
-        ]
-        http.controllers_per_module["base_rest"] = controllers
+        with openerp.api.Environment.manage():
+            env = openerp.api.Environment(cr, openerp.SUPERUSER_ID, {})
+            registration  = env["rest.service.registration"]
+            services_registry = registration._init_global_registry()
+            registration.build_registry(services_registry)
+            # we also have to remove the RestController from the
+            # controller_per_module registry since it's an abstract controller
+            controllers = http.controllers_per_module['base_rest']
+            controllers = [(name, cls) for name, cls in controllers
+                           if 'RestController' not in name]
+            http.controllers_per_module['base_rest'] = controllers
 
     def build_registry(self, services_registry, states=None, exclude_addons=None):
         if not states:
@@ -58,8 +58,8 @@ class RestServiceRegistation(models.AbstractModel):
         # dependencies to ensure that controllers defined in a more
         # specialized addon and overriding more generic one takes precedences
         # on the generic one into the registry
-        graph = odoo.modules.graph.Graph()
-        graph.add_module(self.env.cr, "base")
+        graph = openerp.modules.graph.Graph()
+        graph.add_module(self.env.cr, 'base')
 
         query = "SELECT name " "FROM ir_module_module " "WHERE state IN %s "
         params = [tuple(states)]

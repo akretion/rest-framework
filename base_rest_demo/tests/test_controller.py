@@ -3,7 +3,7 @@
 # License LGPL-3.0 or later (http://www.gnu.org/licenses/lgpl).
 
 
-from odoo.http import controllers_per_module
+from openerp.http import controllers_per_module
 
 from ..controllers.main import (
     BaseRestDemoPrivateApiController,
@@ -50,20 +50,16 @@ class TestController(CommonCase):
         self.assertEqual(len(controllers), 2)
 
         self.assertIn(
-            (
-                "odoo.addons.base_rest_demo.controllers.main."
-                "BaseRestDemoPrivateApiController",
-                BaseRestDemoPrivateApiController,
-            ),
-            controllers,
+            ('openerp.addons.base_rest_demo.controllers.main.'
+             'BaseRestDemoPrivateApiController',
+             BaseRestDemoPrivateApiController),
+            controllers
         )
         self.assertIn(
-            (
-                "odoo.addons.base_rest_demo.controllers.main."
-                "BaseRestDemoPublicApiController",
-                BaseRestDemoPublicApiController,
-            ),
-            controllers,
+            ('openerp.addons.base_rest_demo.controllers.main.'
+             'BaseRestDemoPublicApiController',
+             BaseRestDemoPublicApiController),
+            controllers
         )
 
     def test_controller_routes(self):
