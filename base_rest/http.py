@@ -135,9 +135,14 @@ class HttpRestRequest(HttpRequest):
                 # reset the context to put our new lang.
                 context = dict(self.context)
                 context['lang'] = locale
-                # the setter defiend in odoo.http.WebRequest reset the env
-                # when setting a new context
+                self.context = context
+                # ensure that our new context is set on the session
                 self.session.context = context
+                # delete env property on the request since we change the
+                # context...
+                # the next call to env will instantiate an new
+                # odoo.api.Environment with the new context
+                del self.env
                 break
 
     def _handle_exception(self, exception):
