@@ -99,10 +99,10 @@ class BaseRestService(AbstractComponent):
         return v
 
     def _get_input_validator(self, method_name):
-        return self._get_validator("_validator_%s" % method_name)
+        return self._get_validator('_validator_%s' % method_name)
 
     def _get_output_validator(self, method_name):
-        return self._get_validator("_validator_return_%s" % method_name)
+        return self._get_validator('_validator_return_%s' % method_name)
 
     def _get_input_schema(self, method_name):
         validator = self._get_input_validator(method_name)
