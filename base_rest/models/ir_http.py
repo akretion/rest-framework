@@ -16,6 +16,6 @@ class IrHttp(models.Model):
         # if the env on the request has been accessed before the
         # authentication we must reset the env since it's cached and the
         # user into the env is maybe not set
-        request.env # ensure env exists...
-        del request.env
+        objdict = vars(request)
+        objdict.pop('env', None)
         return res
