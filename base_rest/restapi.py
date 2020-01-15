@@ -3,6 +3,7 @@
 
 import functools
 
+import marshmallow
 from apispec.ext.marshmallow.openapi import OpenAPIConverter
 from cerberus import Validator
 from marshmallow.exceptions import ValidationError
@@ -193,7 +194,9 @@ class Datamodel(RestMethodParam):
     def from_params(self, service, params):
         ModelClass = service.env.datamodels[self._name]
         try:
-            return ModelClass.load(params, many=self._is_list)
+            return ModelClass.load(
+                params, many=self._is_list, unknown=marshmallow.EXCLUDE
+            )
         except ValidationError as ve:
             raise UserError(_("BadRequest %s") % ve.messages)
 
@@ -242,6 +245,6 @@ class Datamodel(RestMethodParam):
         return OpenAPIConverter("3.0", self._schema_name_resolver, None)
 
     def _schema_name_resolver(self, schema):
-        # name resolver used by the OpenapiConverte. always return None
+        # name resolver used by the OpenapiConverter. always return None
         # to force nested schema definition
         return None

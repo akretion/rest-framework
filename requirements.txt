@@ -5,5 +5,5 @@ jsondiff
 graphene
 graphql-server-core
 marshmallow
-marshmallow-objects>=1.0.23
+marshmallow-objects>=2.0.0
 apispec

@@ -6,6 +6,7 @@ setuptools.setup(
         'external_dependencies_override': {
             'python': {
                 'accept_language': 'parse-accept-language',
+                'marshmallow-objects': "marshmallow-objects>=2.0.0"
             },
         },
     }
