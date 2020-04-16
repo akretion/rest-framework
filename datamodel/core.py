@@ -5,6 +5,7 @@
 import logging
 from collections import OrderedDict, defaultdict
 
+from odoo import SUPERUSER_ID, registry as model_registry_finder
 from odoo.api import Environment
 from odoo.tools import LastOrderedSet, OrderedSet
 
@@ -332,6 +333,10 @@ class Datamodel(MarshmallowModel, metaclass=MetaDatamodel):
                 attrs["_registry"] = registry
             DatamodelClass = type(name, tuple(bases), attrs)
 
+        # for convenience, add a Schema-accessible Env
+        env = cls._get_env_from_registry(registry)
+
+        setattr(DatamodelClass.__schema_class__, "env", env)  # noqa: B010
         setattr(DatamodelClass.__schema_class__, "_registry", registry)  # noqa: B010
         setattr(DatamodelClass.__schema_class__, "_datamodel_name", name)  # noqa: B010
         setattr(  # noqa: B010
@@ -342,6 +347,15 @@ class Datamodel(MarshmallowModel, metaclass=MetaDatamodel):
         registry[name] = DatamodelClass
 
         return DatamodelClass
+
+    @classmethod
+    def _get_env_from_registry(cls, registry):
+        for k, v in _datamodel_databases.items():
+            if v is registry:
+                db = k
+                odoo_models_registry = model_registry_finder(db).cursor()
+                result = Environment(odoo_models_registry, SUPERUSER_ID, {})
+                return result
 
     @classmethod
     def _complete_datamodel_build(cls):
