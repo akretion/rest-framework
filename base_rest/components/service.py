@@ -155,7 +155,7 @@ class BaseRestService(AbstractComponent):
         if isinstance(secure_params, dict):
             # for backward compatibility methods expecting json params
             # are declared as m(self, p1=None, p2=None) or m(self, **params)
-            res = method(*args, **secure_params)
+            res = method(*args, **params)
         else:
             res = method(*args, secure_params)
         self._log_call(method, params, secure_params, res)
