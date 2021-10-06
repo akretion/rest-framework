@@ -333,3 +333,68 @@ class CerberusListValidator(CerberusValidator):
         if self._unique_items is not None:
             json_schema["uniqueItems"] = self._unique_items
         return json_schema
+
+
+class FormDataPart(object):
+    def __init__(self, name=None):
+        self._name = name
+
+    def to_openapi_part_property(self, service, direction):
+        return {}
+
+
+class BinaryFormDataPart(FormDataPart):
+    def to_openapi_part_property(self, service, direction):
+        return {"type": "string", "format": "binary"}
+
+
+class StringFormDataPart(FormDataPart):
+    def to_openapi_part_property(self, service, direction):
+        return {"type": "string"}
+
+
+class JsonFormDataPart(FormDataPart):
+    def __init__(self, name, validator):
+        super().__init__(name)
+        self._validator = validator
+        if not hasattr(validator, "to_json_schema"):
+            raise Exception("The validator should provide 'to_json_schema'")
+
+    def to_openapi_part_property(self, service, direction):
+        schema = self._validator.to_json_schema(service, direction)
+        return schema
+
+
+class MultipartFormData(RestMethodParam):
+    def __init__(self, parts):
+        if not isinstance(parts, list):
+            parts = [parts]
+        self._parts = parts
+
+    def to_openapi_properties(self, service, direction):
+        properties = {}
+        for part in self._parts:
+            properties[part._name] = part.to_openapi_part_property(service, direction)
+        return properties
+
+    def to_multipart_content_schema(self, service, direction):
+        return {
+            "multipart/form-data": {
+                "schema": {
+                    "type": "object",
+                    "properties": self.to_openapi_properties(service, direction),
+                }
+            }
+        }
+
+    def from_params(self, service, params):
+        return params
+
+    def to_openapi_requestbody(self, service):
+        return {"content": self.to_multipart_content_schema(service, "input")}
+
+    def to_openapi_responses(self, service):
+        return {"200": {"content": self.to_multipart_content_schema(service, "output")}}
+
+    def to_response(self, service, result):
+        return result
