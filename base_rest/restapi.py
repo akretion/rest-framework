@@ -2,6 +2,7 @@
 # License LGPL-3.0 or later (http://www.gnu.org/licenses/lgpl).
 
 import functools
+import json
 
 from cerberus import Validator
 
@@ -337,6 +338,9 @@ class CerberusListValidator(CerberusValidator):
 
 class FormDataPart(object):
     def __init__(self, name=None):
+        """
+        :param name: The name of the form-data field
+        """
         self._name = name
 
     def to_openapi_part_property(self, service, direction):
@@ -355,6 +359,9 @@ class StringFormDataPart(FormDataPart):
 
 class JsonFormDataPart(FormDataPart):
     def __init__(self, name, validator):
+        """This allows to create a part of a multipart/form-data endpoint.
+        :param validator:  an instance of RestMethodParam
+        """
         super().__init__(name)
         self._validator = validator
         if not hasattr(validator, "to_json_schema"):
@@ -367,6 +374,9 @@ class JsonFormDataPart(FormDataPart):
 
 class MultipartFormData(RestMethodParam):
     def __init__(self, parts):
+        """This allows to create multipart/form-data endpoints.
+        :param parts:  list of FormDataPart
+        """
         if not isinstance(parts, list):
             parts = [parts]
         self._parts = parts
@@ -388,6 +398,12 @@ class MultipartFormData(RestMethodParam):
         }
 
     def from_params(self, service, params):
+        for part in filter(lambda p: isinstance(p, JsonFormDataPart), self._parts):
+            # only JSON part types can be validated (at least for now)
+            json_param = json.loads(
+                params[part._name]
+            )  # multipart ony sends it as string
+            params[part._name] = part._validator.from_params(service, json_param)
         return params
 
     def to_openapi_requestbody(self, service):
@@ -397,4 +413,4 @@ class MultipartFormData(RestMethodParam):
         return {"200": {"content": self.to_multipart_content_schema(service, "output")}}
 
     def to_response(self, service, result):
-        return result
+        raise NotImplementedError()
