@@ -223,13 +223,12 @@ class TestOpenAPIGenerator(TransactionRestServiceRegistryCase):
             @restapi.method(
                 routes=[(["/create"], "POST")],
                 input_param=restapi.MultipartFormData(
-                    [
-                        restapi.BinaryFormDataPart("file"),
-                        restapi.JsonFormDataPart(
-                            "params",
-                            restapi.CerberusValidator("_get_attachment_schema"),
+                    {
+                        "file": restapi.BinaryData(
+                            mediatypes=["image/png", "image/jpeg"]
                         ),
-                    ]
+                        "params": restapi.CerberusValidator("_get_attachment_schema"),
+                    }
                 ),
                 output_param=restapi.CerberusValidator("_get_attachment_schema"),
             )
@@ -308,6 +307,7 @@ class TestOpenAPIGenerator(TransactionRestServiceRegistryCase):
                                 "file": {
                                     "type": "string",
                                     "format": "binary",
+                                    "required": False,
                                 },
                                 "params": {
                                     "type": "object",
@@ -318,6 +318,9 @@ class TestOpenAPIGenerator(TransactionRestServiceRegistryCase):
                                     },
                                     "required": ["name"],
                                 },
+                            },
+                            "encoding": {
+                                "file": {"contentType": "image/png, image/jpeg"}
                             },
                         }
                     }

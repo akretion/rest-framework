@@ -7,7 +7,7 @@ import json
 from cerberus import Validator
 
 from odoo import _, http
-from odoo.exceptions import UserError
+from odoo.exceptions import UserError, ValidationError
 
 from .tools import cerberus_to_json
 
@@ -149,20 +149,21 @@ class BinaryData(RestMethodParam):
         self._mediatypes = mediatypes
         self._required = required
 
-    @property
-    def _binary_content_schema(self):
+    def to_json_schema(self):
         return {
-            mediatype: {
-                "schema": {
-                    "type": "string",
-                    "format": "binary",
-                    "required": self._required,
-                }
-            }
+            "type": "string",
+            "format": "binary",
+            "required": self._required,
+        }
+
+    @property
+    def binary_content_schema(self):
+        return {
+            mediatype: {"schema": self.to_json_schema()}
             for mediatype in self._mediatypes
         }
 
-    def to_openapi_requestbody(self, services, spec):
+    def to_openapi_requestbody(self, service, spec):
         return {"content": self._binary_content_schema}
 
     def to_openapi_responses(self, service, spec):
@@ -336,59 +337,33 @@ class CerberusListValidator(CerberusValidator):
         return json_schema
 
 
-class FormDataPart(object):
-    def __init__(self, name=None):
-        """
-        :param name: The name of the form-data field
-        """
-        self._name = name
-
-    def to_openapi_part_property(self, service, direction):
-        return {}
-
-
-class BinaryFormDataPart(FormDataPart):
-    def to_openapi_part_property(self, service, direction):
-        return {"type": "string", "format": "binary"}
-
-
-class StringFormDataPart(FormDataPart):
-    def to_openapi_part_property(self, service, direction):
-        return {"type": "string"}
-
-
-class JsonFormDataPart(FormDataPart):
-    def __init__(self, name, validator):
-        """This allows to create a part of a multipart/form-data endpoint.
-        :param validator:  an instance of RestMethodParam
-        """
-        super().__init__(name)
-        self._validator = validator
-        if not hasattr(validator, "to_json_schema"):
-            raise Exception("The validator should provide 'to_json_schema'")
-
-    def to_openapi_part_property(self, service, direction):
-        schema = self._validator.to_json_schema(service, direction)
-        return schema
-
-
 class MultipartFormData(RestMethodParam):
     def __init__(self, parts):
         """This allows to create multipart/form-data endpoints.
-        :param parts:  list of FormDataPart
+        :param parts:  list of RestMethodParam
         """
-        if not isinstance(parts, list):
-            parts = [parts]
+        if not isinstance(parts, dict):
+            raise ValidationError(_("You must provide a dict of RestMethodParam"))
         self._parts = parts
 
     def to_openapi_properties(self, service, direction):
         properties = {}
-        for part in self._parts:
-            properties[part._name] = part.to_openapi_part_property(service, direction)
+        for key, part in self._parts.items():
+            if isinstance(part, BinaryData):
+                properties[key] = part.to_json_schema()
+            else:
+                properties[key] = part.to_json_schema(service, direction)
         return properties
 
+    def to_openapi_encoding(self):
+        encodings = {}
+        for key, part in self._parts.items():
+            if isinstance(part, BinaryData):
+                encodings[key] = {"contentType": ", ".join(part._mediatypes)}
+        return encodings
+
     def to_multipart_content_schema(self, service, direction):
-        return {
+        res = {
             "multipart/form-data": {
                 "schema": {
                     "type": "object",
@@ -396,14 +371,28 @@ class MultipartFormData(RestMethodParam):
                 }
             }
         }
+        encoding = self.to_openapi_encoding()
+        if len(encoding) > 0:
+            res["multipart/form-data"]["schema"]["encoding"] = encoding
+        return res
 
     def from_params(self, service, params):
-        for part in filter(lambda p: isinstance(p, JsonFormDataPart), self._parts):
-            # only JSON part types can be validated (at least for now)
-            json_param = json.loads(
-                params[part._name]
-            )  # multipart ony sends it as string
-            params[part._name] = part._validator.from_params(service, json_param)
+        for key, part in self._parts.items():
+            param = None
+            if isinstance(part, BinaryData):
+                param = part.from_params(service, params[key])
+            else:
+                # If the part is not Binary, it should be JSON
+                try:
+                    json_param = json.loads(
+                        params[key]
+                    )  # multipart ony sends its parts as string
+                except json.JSONDecodeError as error:
+                    raise ValidationError(
+                        _("{}'s JSON content is malformed: {}".format(key, error))
+                    )
+                param = part.from_params(service, json_param)
+            params[key] = param
         return params
 
     def to_openapi_requestbody(self, service):
