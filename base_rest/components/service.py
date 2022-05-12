@@ -9,7 +9,7 @@ import textwrap
 from collections import OrderedDict
 
 from openerp.addons.component.core import AbstractComponent
-from openerp.exceptions import UserError, ValidationError
+from openerp.exceptions import Warning as UserError, ValidationError
 from openerp.http import request
 from openerp.tools.translate import _
 from werkzeug.exceptions import NotFound

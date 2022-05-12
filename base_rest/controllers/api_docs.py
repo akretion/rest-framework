@@ -8,8 +8,6 @@ from contextlib import contextmanager
 from openerp.addons.component.core import WorkContext
 from openerp.http import Controller, request, route
 
-from odoo.addons.component.core import WorkContext
-
 from ..core import _rest_services_databases
 from .main import _PseudoCollection
 

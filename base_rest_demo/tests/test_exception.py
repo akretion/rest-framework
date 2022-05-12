@@ -8,8 +8,6 @@ import openerp.tools
 from openerp.addons.base_rest.tests.common import RegistryMixin
 from openerp.tests import HttpCase
 
-from odoo.addons.base_rest.tests.common import RegistryMixin
-
 
 @openerp.tests.common.at_install(False)
 @openerp.tests.common.post_install(True)

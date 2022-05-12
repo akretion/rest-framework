@@ -11,13 +11,14 @@ import sys
 import traceback
 from collections import defaultdict
 from openerp.exceptions import (
-    UserError, MissingError, AccessError, AccessDenied, ValidationError)
+    Warning as UserError, MissingError, AccessError, AccessDenied, ValidationError)
 from openerp.http import HttpRequest, Root, request, SessionExpiredException
 from openerp.tools.config import config
 from werkzeug.exceptions import BadRequest, NotFound, Forbidden, \
     InternalServerError, HTTPException, Unauthorized
 from werkzeug.utils import escape
 from .core import _rest_services_databases
+import openerp
 
 _logger = logging.getLogger(__name__)
 
@@ -187,7 +188,7 @@ def get_request(self, httprequest):
         # registry is not loaded yet
         # so we enforce its loading here to make sure that
         # _rest_services_databases is not empty
-        odoo.registry(db)
+        openerp.registry(db)
         service_registry = _rest_services_databases.get(db)
         if service_registry:
             for root_path in service_registry:

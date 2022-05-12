@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Copyright 2017 ACSONE SA/NV
      License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl). -->
-<odoo>
+<openerp>
+    <data>
     <template id="openapi" name="OpenAPI">
         <t t-call="web.layout">
             <t t-set="head">
@@ -45,4 +46,5 @@
             </script>
         </body>
     </template>
-</odoo>
+    </data>
+</openerp>

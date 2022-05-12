@@ -6,7 +6,7 @@
     "name": "Base Rest Demo",
     "summary": """
         Demo addon for Base REST""",
-    'version': '9.0.1.0.0',
+    'version': '8.0.1.0.0',
     'development_status': 'Beta',
     'license': 'AGPL-3',
     'author': 'ACSONE SA/NV, '
