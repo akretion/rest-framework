@@ -218,7 +218,7 @@ class TestOpenAPIGenerator(TransactionRestServiceRegistryCase):
                 output_param=restapi.BinaryData(required=True),
             )
             def download(self, _id):
-                """ download the attachment """
+                """download the attachment"""
 
             @restapi.method(
                 routes=[(["/create"], "POST")],
@@ -234,7 +234,7 @@ class TestOpenAPIGenerator(TransactionRestServiceRegistryCase):
             )
             # pylint: disable=W8106
             def create(self, file, params):
-                """ create the attachment """
+                """create the attachment"""
 
             def _get_attachment_schema(self):
                 return {"name": {"type": "string", "required": True}}
