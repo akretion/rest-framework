@@ -220,10 +220,11 @@ class FastapiEndpoint(models.Model):
 
     def _get_app_exception_handlers(
         self,
-    ) -> Dict[
-        int | Type[Exception],
-        Callable[[Request, Exception], Union[Response, Awaitable[Response]]],
-    ]:
+    ):
+        #    -> Dict[
+        #    int | Type[Exception],
+        #    Callable[[Request, Exception], Union[Response, Awaitable[Response]]],
+        # ]:
         """Return a dict of exception handlers to register on the app
 
         The key is the exception class or status code to handle.
