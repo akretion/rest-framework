@@ -875,14 +875,14 @@ complete transparent. This addon is called
 `odoo-addon-extendable-fastapi <https://pypi.org/project/odoo-addon-extendable-fastapi/>`_.
 
 When you want to allow other addons to extend a pydantic model, you must
-first define the model as an extendable model by using a dedicated metaclass
+first define the model as an extendable model by using the dedicated
+class from `extendable_pydantic`.
 
 .. code-block:: python
 
-  from pydantic import BaseModel
-  from extendable_pydantic import ExtendableModelMeta
+  from extendable_pydantic import ExtendableBaseModel
 
-  class Partner(BaseModel, metaclass=ExtendableModelMeta):
+  class Partner(ExtendableBaseModel):
     name = 0.1
 
 As any other pydantic model, you can now use this model as parameter or as response
@@ -902,6 +902,11 @@ pydantic.
       """Return the location"""
       return Partner.from_orm(partner)
 
+Some of the Pydantic config parameters are not set by default but are very useful when
+using `odoo-addon-fastapi`, hence the `ExtendableBaseModel` model was extended
+to `StrictExtendableBaseModel` in **'odoo-addon-extendable-fastapi'**
+to force revalidation of the instances at each change, and forbidding the
+extra values.
 
 If you need to add a new field into the model **'Partner'**, you can extend it
 in your new addon by defining a new model that inherits from the model **'Partner'**.
@@ -911,7 +916,7 @@ in your new addon by defining a new model that inherits from the model **'Partne
   from typing import Optional
   from odoo.addons.fastapi.models.fastapi_endpoint_demo import Partner
 
-  class PartnerExtended(Partner, extends=Partner):
+  class PartnerExtended(Partner, extends=True):
       email: Optional[str]
 
 If your new addon is installed in a database, a call to the route handler
@@ -1525,7 +1530,7 @@ promote its widespread use.
 
 Current `maintainer <https://odoo-community.org/page/maintainer-role>`__:
 
-|maintainer-lmignon| 
+|maintainer-lmignon|
 
 This module is part of the `OCA/rest-framework <https://github.com/OCA/rest-framework/tree/14.0/fastapi>`_ project on GitHub.
 
