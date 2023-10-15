@@ -22,7 +22,7 @@
     "data": [],
     "demo": [],
     "external_dependencies": {
-        "python": ["jsondiff", "extendable-pydantic", "pydantic<2"]
+        # "python": ["jsondiff", "extendable-pydantic", "pydantic<2"]
     },
-    "installable": True,
+    "installable": False,
 }

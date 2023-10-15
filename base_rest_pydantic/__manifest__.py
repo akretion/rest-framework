@@ -15,7 +15,7 @@
     "installable": False,
     "external_dependencies": {
         "python": [
-            "pydantic<2",
+            #"pydantic<2",
         ]
     },
 }
