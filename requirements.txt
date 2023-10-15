@@ -4,7 +4,7 @@ apispec
 apispec>=4.0.0
 cerberus
 extendable-pydantic
-extendable-pydantic>=0.0.4
+extendable-pydantic>=1.0.0
 extendable>=0.0.4
 fastapi
 graphene
@@ -13,7 +13,7 @@ jsondiff
 marshmallow
 marshmallow-objects>=2.0.0
 parse-accept-language
-pydantic<2
+pydantic>2
 pyquerystring
 python-multipart
 typing-extensions
