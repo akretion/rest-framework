@@ -21,7 +21,7 @@ class WizardPartnerAuthResetPassword(models.Model):
         default="6-hours",
         required=True,
     )
-    partner_ids = fields.Many2many(comodel_name="shopinvader.partner")
+    partner_ids = fields.Many2many(comodel_name="res.partner")
     template_id = fields.Many2one(
         "mail.template",
         "Mail Template",
