@@ -319,7 +319,7 @@ class RestApiMethodTransformer(object):
             "For full details on how to adapt your code, please "
             "enable DEBUG level"
         )
-        _logger.warning(deprecated_message, method_name, self._service._name)
+        # _logger.warning(deprecated_message, method_name, self._service._name)
         deprecated_message_details = """Add the following decorator to fix this issue:
 @restapi.method(
     {params}
