@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<odoo>
+    <record id="auth_partner.demo_directory" model="auth.directory">
+        <field name="cookie_secret_key">SuperSecret</field>
+    </record>
+</odoo>

@@ -49,13 +49,13 @@ class CommonTestAuth(FastAPITransactionCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.text)
         return response
 
-    def _login(self, test_client):
+    def _login(self, test_client, password="supersecret"):
         response: Response = test_client.post(
             "/auth/login",
             content=json.dumps(
                 {
                     "login": "loriot@example.org",
-                    "password": "supersecret",
+                    "password": password,
                 }
             ),
         )
@@ -101,7 +101,7 @@ class TestAuth(CommonTestAuth):
             )
             self.assertEqual(response.status_code, status.HTTP_200_OK, response.text)
             self.assertFalse(
-                self.env["fastapi.auth.partner"]
+                self.env["auth.partner"]
                 .search([("login", "=", "loriot@example.org")])
                 .mail_verified,
             )
@@ -122,9 +122,13 @@ class TestAuth(CommonTestAuth):
             self.assertEqual(response.status_code, status.HTTP_200_OK, response.text)
 
             self.assertTrue(
-                self.env["fastapi.auth.partner"]
+                self.env["auth.partner"]
                 .search([("login", "=", "loriot@example.org")])
                 .mail_verified,
+            )
+            response = self._login(test_client, password="megasecret")
+            self.assertEqual(
+                response.json(), {"login": "loriot@example.org", "mail_verified": True}
             )
 
     def test_validate_email(self):
@@ -134,7 +138,7 @@ class TestAuth(CommonTestAuth):
             "please click on the following link to verify your email", str(mail.body)
         )
         self.assertFalse(
-            self.env["fastapi.auth.partner"]
+            self.env["auth.partner"]
             .search([("login", "=", "loriot@example.org")])
             .mail_verified,
         )
@@ -147,7 +151,7 @@ class TestAuth(CommonTestAuth):
         self.assertEqual(response.status_code, status.HTTP_200_OK, response.text)
 
         self.assertTrue(
-            self.env["fastapi.auth.partner"]
+            self.env["auth.partner"]
             .search([("login", "=", "loriot@example.org")])
             .mail_verified,
         )

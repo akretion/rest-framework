@@ -58,12 +58,13 @@ class AuthPartner:
             if vals["did"] == directory.id and vals["pid"]:
                 partner = env["res.partner"].browse(vals["pid"]).exists()
                 if partner:
-                    auth = partner.sudo().auth_partner_ids.filtered(
-                        lambda s: s.directory_id == directory
-                    )
-                    if auth:
+                    auth_partner = partner._get_auth_partner_for_directory(directory)
+                    if auth_partner:
                         if directory.sliding_session:
-                            auth._set_auth_cookie(response)
+                            helper = env["fastapi.auth.service"].new(
+                                {"directory_id": endpoint.directory_id}
+                            )
+                            helper._set_auth_cookie(auth_partner, response)
                         return partner
         _logger.info("Could not determine partner from 'fastapi_auth_partner' cookie.")
         raise HTTPException(status_code=HTTP_401_UNAUTHORIZED)

@@ -1,17 +1,22 @@
-# Copyright 2020 Akretion
+# Copyright 2024 Akretion (http://www.akretion.com).
+# @author Sébastien BEAU <sebastien.beau@akretion.com>
+# @author Florian Mounier <florian.mounier@akretion.com>
 # License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl).
 
 import sys
-
-from odoo.exceptions import AccessError
 
 if sys.version_info >= (3, 9):
     from typing import Annotated
 else:
     from typing_extensions import Annotated
 
-from odoo import SUPERUSER_ID, _, fields, models
+from datetime import datetime, timedelta, timezone
+
+from itsdangerous import URLSafeTimedSerializer
+
+from odoo import _, fields, models, tools
 from odoo.api import Environment
+from odoo.exceptions import ValidationError
 
 from odoo.addons.base.models.res_partner import Partner
 from odoo.addons.fastapi.dependencies import fastapi_endpoint, odoo_env
@@ -21,7 +26,6 @@ from fastapi import APIRouter, Depends, Response
 from fastapi.responses import RedirectResponse
 
 from ..dependencies import auth_partner_authenticated_partner
-from ..models.fastapi_auth_partner import COOKIE_AUTH_NAME
 from ..schemas import (
     AuthForgetPasswordInput,
     AuthLoginInput,
@@ -30,6 +34,8 @@ from ..schemas import (
     AuthSetPasswordInput,
     AuthValidateEmailInput,
 )
+
+COOKIE_AUTH_NAME = "fastapi_auth_partner"
 
 auth_router = APIRouter(tags=["auth"])
 
@@ -41,11 +47,10 @@ def register(
     endpoint: Annotated[FastapiEndpoint, Depends(fastapi_endpoint)],
     response: Response,
 ) -> AuthPartnerResponse:
-    partner_auth = (
-        env["fastapi.auth.service"].sudo()._register_auth(endpoint.directory_id, data)
-    )
-    partner_auth._set_auth_cookie(response)
-    return AuthPartnerResponse.from_auth_partner(partner_auth)
+    helper = env["fastapi.auth.service"].new({"directory_id": endpoint.directory_id})
+    auth_partner = helper.sudo()._signup(data)
+    helper._set_auth_cookie(auth_partner, response)
+    return AuthPartnerResponse.from_auth_partner(auth_partner)
 
 
 @auth_router.post("/auth/login")
@@ -55,11 +60,10 @@ def login(
     endpoint: Annotated[FastapiEndpoint, Depends(fastapi_endpoint)],
     response: Response,
 ) -> AuthPartnerResponse:
-    partner_auth = (
-        env["fastapi.auth.service"].sudo()._login(endpoint.directory_id, data)
-    )
-    partner_auth._set_auth_cookie(response)
-    return AuthPartnerResponse.from_auth_partner(partner_auth)
+    helper = env["fastapi.auth.service"].new({"directory_id": endpoint.directory_id})
+    auth_partner = helper.sudo()._login(data)
+    helper._set_auth_cookie(auth_partner, response)
+    return AuthPartnerResponse.from_auth_partner(auth_partner)
 
 
 @auth_router.post("/auth/logout", status_code=205)
@@ -68,7 +72,10 @@ def logout(
     endpoint: Annotated[FastapiEndpoint, Depends(fastapi_endpoint)],
     response: Response,
 ):
-    env["fastapi.auth.service"].sudo()._logout(endpoint.directory_id, response)
+    helper = env["fastapi.auth.service"].new({"directory_id": endpoint.directory_id})
+    helper.sudo()._logout()
+    helper._clear_auth_cookie(response)
+    return {}
 
 
 @auth_router.post("/auth/validate_email")
@@ -77,7 +84,8 @@ def validate_email(
     env: Annotated[Environment, Depends(odoo_env)],
     endpoint: Annotated[FastapiEndpoint, Depends(fastapi_endpoint)],
 ):
-    env["fastapi.auth.service"].sudo()._validate_email(endpoint.directory_id, data)
+    helper = env["fastapi.auth.service"].new({"directory_id": endpoint.directory_id})
+    helper.sudo()._validate_email(data)
     return {}
 
 
@@ -87,9 +95,8 @@ def request_reset_password(
     env: Annotated[Environment, Depends(odoo_env)],
     endpoint: Annotated[FastapiEndpoint, Depends(fastapi_endpoint)],
 ):
-    env["fastapi.auth.service"].sudo()._request_reset_password(
-        endpoint.directory_id.id, data
-    )
+    helper = env["fastapi.auth.service"].new({"directory_id": endpoint.directory_id})
+    helper.sudo()._request_reset_password(data)
     return {}
 
 
@@ -100,41 +107,37 @@ def set_password(
     endpoint: Annotated[FastapiEndpoint, Depends(fastapi_endpoint)],
     response: Response,
 ) -> AuthPartnerResponse:
-    partner_auth = (
-        env["fastapi.auth.service"].sudo()._set_password(endpoint.directory_id, data)
-    )
-    partner_auth._set_auth_cookie(response)
-    return AuthPartnerResponse.from_auth_partner(partner_auth)
+    helper = env["fastapi.auth.service"].new({"directory_id": endpoint.directory_id})
+    auth_partner = helper.sudo()._set_password(data)
+    helper._set_auth_cookie(auth_partner, response)
+    return AuthPartnerResponse.from_auth_partner(auth_partner)
 
 
 @auth_router.get("/auth/profile")
 def profile(
+    env: Annotated[Environment, Depends(odoo_env)],
     endpoint: Annotated[FastapiEndpoint, Depends(fastapi_endpoint)],
     partner: Annotated[Partner, Depends(auth_partner_authenticated_partner)],
 ) -> AuthPartnerResponse:
-    partner_auth = partner.auth_partner_ids.filtered(
-        lambda s: s.directory_id == endpoint.sudo().directory_id
-    )
-    return AuthPartnerResponse.from_auth_partner(partner_auth)
+    helper = env["fastapi.auth.service"].new({"directory_id": endpoint.directory_id})
+    auth_partner = helper._get_auth_from_partner(partner)
+    return AuthPartnerResponse.from_auth_partner(auth_partner)
 
 
-@auth_router.get("/auth/impersonate/{fastapi_partner_id}/{token}")
+@auth_router.get("/auth/impersonate/{auth_partner_id}/{token}")
 def impersonate(
-    fastapi_partner_id: int,
+    auth_partner_id: int,
     token: str,
     env: Annotated[Environment, Depends(odoo_env)],
     endpoint: Annotated[FastapiEndpoint, Depends(fastapi_endpoint)],
 ) -> RedirectResponse:
-    partner_auth = (
-        env["fastapi.auth.service"]
-        .sudo()
-        ._impersonate(endpoint.directory_id, fastapi_partner_id, token)
-    )
+    helper = env["fastapi.auth.service"].new({"directory_id": endpoint.directory_id})
+    auth_partner = helper._impersonate(auth_partner_id, token)
     base = endpoint.public_url or (
         env["ir.config_parameter"].sudo().get_param("web.base.url") + endpoint.root_path
     )
     response = RedirectResponse(url=base)
-    partner_auth._set_auth_cookie(response)
+    helper._set_auth_cookie(auth_partner, response)
     return response
 
 
@@ -142,70 +145,85 @@ class AuthService(models.AbstractModel):
     _name = "fastapi.auth.service"
     _description = "Fastapi Auth Service"
 
-    def _prepare_partner_register(self, directory, data):
-        return {
-            "name": data.name,
-            "email": data.login,
-            "auth_partner_ids": [
-                (0, 0, self._prepare_partner_auth_register(directory, data))
-            ],
-        }
+    directory_id = fields.Many2one("auth.directory", required=True)
 
-    def _prepare_partner_auth_register(self, directory, data):
-        return {
-            "login": data.login,
-            "password": data.password,
-            "directory_id": directory.id,
-        }
+    def _get_auth_from_partner(self, partner):
+        return partner._get_auth_partner_for_directory(self.directory_id)
 
-    def _register_auth(self, directory, data):
-        vals = self._prepare_partner_register(directory, data)
-        partner = self.env["res.partner"].create([vals])
-        auth_partner = partner.auth_partner_ids
-        auth_partner.send_registration_invite()
+    def _signup(self, data):
+        auth_partner = self.env["auth.partner"]._signup(
+            self.directory_id, **data.dict()
+        )
         return auth_partner
 
-    def _login(self, directory, data):
-        partner_auth = (
-            self.env["fastapi.auth.partner"]
-            .sudo()
-            .log_in(directory, data.login, data.password)
-        )
-        if partner_auth:
-            return partner_auth
-        else:
-            raise AccessError(_("Invalid Login or Password"))
+    def _login(self, data):
+        return self.env["auth.partner"]._login(self.directory_id, **data.dict())
 
-    def _impersonate(self, directory, fastapi_partner_id, token):
+    def _impersonate(self, auth_partner_id, token):
         return (
-            self.env["fastapi.auth.partner"]
+            self.env["auth.partner"]
             .sudo()
-            .impersonating(directory, fastapi_partner_id, token)
+            ._impersonating(self.directory_id, auth_partner_id, token)
         )
 
-    def _logout(self, directory, response):
+    def _logout(self):
+        pass
+
+    def _set_password(self, data):
+        return (
+            self.env["auth.partner"]
+            .sudo()
+            ._set_password(self.directory_id, data.token, data.password)
+        )
+
+    def _request_reset_password(self, data):
+        auth_partner = self.directory_id._get_auth_from_login(data.login)
+        if not auth_partner:
+            # do not leak information, no partner no mail sent
+            return
+
+        return auth_partner._request_reset_password()
+
+    def _validate_email(self, data):
+        return (
+            self.env["auth.partner"]
+            .sudo()
+            ._validate_email(self.directory_id, data.token)
+        )
+
+    def _prepare_cookie_payload(self, partner):
+        # use short key to reduce cookie size
+        return {
+            "did": self.directory_id.id,
+            "pid": partner.id,
+        }
+
+    def _prepare_cookie(self, partner):
+        secret = self.directory_id.cookie_secret_key
+        if not secret:
+            raise ValidationError(_("No cookie secret key defined"))
+        payload = self._prepare_cookie_payload(partner)
+        value = URLSafeTimedSerializer(secret).dumps(payload)
+        exp = (
+            datetime.now(timezone.utc)
+            + timedelta(minutes=self.directory_id.cookie_duration)
+        ).timestamp()
+        vals = {
+            "value": value,
+            "expires": exp,
+            "httponly": True,
+            "secure": True,
+            "samesite": "strict",
+        }
+        if tools.config.get("test_enable"):
+            # do not force https for test
+            vals["secure"] = False
+        return vals
+
+    def _set_auth_cookie(self, auth_partner, response):
+        response.set_cookie(
+            COOKIE_AUTH_NAME, **self.sudo()._prepare_cookie(auth_partner.partner_id)
+        )
+
+    def _clear_auth_cookie(self, response):
         response.set_cookie(COOKIE_AUTH_NAME, max_age=0)
-
-    def _set_password(self, directory, data):
-        partner_auth = (
-            self.env["fastapi.auth.partner"]
-            .sudo()
-            .set_password(directory, data.token, data.password)
-        )
-        if partner_auth:
-            partner_auth.date_last_sucessfull_reset_pwd = fields.Datetime.now()
-            partner_auth.nbr_pending_reset_sent = 0
-        return partner_auth
-
-    def _request_reset_password(self, directory, data):
-        self.env["fastapi.auth.partner"].with_user(
-            SUPERUSER_ID
-        ).with_delay().request_reset_password(directory, data.login)
-
-    def _validate_email(self, directory, data):
-        partner_auth = (
-            self.env["fastapi.auth.partner"]
-            .sudo()
-            .validate_email(directory, data.token)
-        )
-        return partner_auth

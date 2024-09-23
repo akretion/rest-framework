@@ -5,12 +5,12 @@
         <field name="inherit_id" ref="fastapi.fastapi_endpoint_form_view" />
         <field name="arch" type="xml">
             <field name="demo_auth_method" position="after">
-                <field name="is_partner_auth" invisible="1" />
+                <field name="is_auth_partner" invisible="1" />
                 <field
                     name="directory_id"
                     attrs="{
-                        'invisible': [('is_partner_auth', '=', False)],
-                        'required': [('is_partner_auth', '=', True)]
+                        'invisible': [('is_auth_partner', '=', False)],
+                        'required': [('is_auth_partner', '=', True)]
                     }"
                 />
             </field>

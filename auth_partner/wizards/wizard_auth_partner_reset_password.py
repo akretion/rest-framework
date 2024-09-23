@@ -6,8 +6,8 @@ from datetime import datetime, timedelta
 from odoo import api, fields, models
 
 
-class WizardPartnerAuthResetPassword(models.TransientModel):
-    _name = "wizard.partner.auth.reset.password"
+class WizardAuthPartnerResetPassword(models.TransientModel):
+    _name = "wizard.auth.partner.reset.password"
     _description = "Wizard Partner Auth Reset Password"
 
     delay = fields.Selection(
@@ -25,7 +25,7 @@ class WizardPartnerAuthResetPassword(models.TransientModel):
         "mail.template",
         "Mail Template",
         required=True,
-        domain=[("model_id", "=", "fastapi.auth.partner")],
+        domain=[("model_id", "=", "auth.partner")],
     )
     date_validity = fields.Datetime(
         compute="_compute_date_validity", store=True, readonly=False
@@ -41,9 +41,12 @@ class WizardPartnerAuthResetPassword(models.TransientModel):
                 )
 
     def confirm(self):
-        for auth_partner in self.env["fastapi.auth.partner"].browse(
+        for auth_partner in self.env["auth.partner"].browse(
             self._context["active_ids"]
         ):
-            auth_partner.with_delay().send_reset_password(
-                self.template_id, force_expiration=self.date_validity
+            auth_partner.directory_id._send_mail(
+                self.template_id,
+                self,
+                callback_job=auth_partner.delayable()._on_reset_password_sent,
+                token=auth_partner._generate_token(force_expiration=self.date_validity),
             )

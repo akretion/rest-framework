@@ -31,7 +31,7 @@ def whoami_public_or_partner(
 ) -> AuthPartnerResponse:
     if partner:
         return AuthPartnerResponse.from_auth_partner(partner.auth_partner_ids)
-    return AuthPartnerResponse(login="no-one")
+    return AuthPartnerResponse(login="no-one", mail_verified=False)
 
 
 @tests.tagged("post_install", "-at_install")
@@ -40,7 +40,7 @@ class TestEndToEnd(tests.HttpCase):
         super().setUp()
         endpoint = self.env.ref("fastapi_auth_partner.fastapi_endpoint_demo")
         endpoint.user_id.groups_id |= self.env.ref(
-            "fastapi_auth_partner.group_partner_auth_api"
+            "auth_partner.group_auth_partner_api"
         )
         endpoint._handle_registry_sync()
 

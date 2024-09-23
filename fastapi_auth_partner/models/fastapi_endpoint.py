@@ -23,11 +23,17 @@ class FastapiEndpoint(models.Model):
         ],
         string="Authentication method",
     )
-    directory_id = fields.Many2one("fastapi.auth.directory")
+    directory_id = fields.Many2one("auth.directory")
 
-    is_partner_auth = fields.Boolean(
-        compute="_compute_is_partner_auth",
+    is_auth_partner = fields.Boolean(
+        compute="_compute_is_auth_partner",
         help="Technical field to know if the auth method is partner",
+    )
+    # While waiting for https://github.com/OCA/rest-framework/pull/438/files
+    public_url: str = fields.Char(
+        help="The public URL of the API.\n"
+        "This is an informative data item that can be used by "
+        "other modules, for example, to construct URLs in mails."
     )
 
     def _get_fastapi_routers(self) -> List[APIRouter]:
@@ -36,6 +42,6 @@ class FastapiEndpoint(models.Model):
             routers.append(auth_router)
         return routers
 
-    def _compute_is_partner_auth(self):
+    def _compute_is_auth_partner(self):
         for rec in self:
-            rec.is_partner_auth = auth_router in rec._get_fastapi_routers()
+            rec.is_auth_partner = auth_router in rec._get_fastapi_routers()

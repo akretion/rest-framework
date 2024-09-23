@@ -15,6 +15,6 @@ methods. See documentation to learn more about how to create a new app.
     <field name="root_path">/fastapi_auth_partner_demo</field>
     <field name="demo_auth_method">auth_partner</field>
     <field name="user_id" ref="fastapi.my_demo_app_user" />
-    <field name="directory_id" ref="demo_directory" />
+    <field name="directory_id" ref="auth_partner.demo_directory" />
   </record>
 </odoo>

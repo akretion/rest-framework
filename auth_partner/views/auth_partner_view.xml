@@ -1,8 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <odoo>
-
-    <record id="fastapi_auth_partner_view_tree" model="ir.ui.view">
-        <field name="model">fastapi.auth.partner</field>
+    <record id="auth_partner_view_tree" model="ir.ui.view">
+        <field name="model">auth.partner</field>
         <field name="arch" type="xml">
             <tree>
                 <field name="directory_id" />
@@ -16,18 +15,12 @@
         </field>
     </record>
 
-    <record id="fastapi_auth_partner_view_form" model="ir.ui.view">
-        <field name="model">fastapi.auth.partner</field>
+    <record id="auth_partner_view_form" model="ir.ui.view">
+        <field name="model">auth.partner</field>
         <field name="arch" type="xml">
             <form string="Auth Partner">
                 <header>
-                    <button
-                        name="local_impersonate"
-                        type="object"
-                        string="Local Impersonate"
-                        class="btn-secondary"
-                        groups="base.group_no_one"
-                    />
+                    <button name="send_invite" type="object" string="Send Invite" />
                     <button
                         name="impersonate"
                         type="object"
@@ -55,8 +48,8 @@
         </field>
     </record>
 
-    <record id="fastapi_auth_partner_view_search" model="ir.ui.view">
-        <field name="model">fastapi.auth.partner</field>
+    <record id="auth_partner_view_search" model="ir.ui.view">
+        <field name="model">auth.partner</field>
         <field name="arch" type="xml">
             <search string="Auth Partner">
                 <field name="directory_id" />
@@ -73,28 +66,26 @@
         </field>
     </record>
 
-    <record model="ir.actions.act_window" id="fastapi_auth_partner_action">
+    <record id="auth_partner_action" model="ir.actions.act_window">
         <field name="name">Partner</field>
         <field name="type">ir.actions.act_window</field>
-        <field name="res_model">fastapi.auth.partner</field>
+        <field name="res_model">auth.partner</field>
         <field name="view_mode">tree,form</field>
-        <field name="search_view_id" ref="fastapi_auth_partner_view_search" />
+        <field name="search_view_id" ref="auth_partner_view_search" />
         <field name="domain">[]</field>
         <field name="context">{}</field>
     </record>
 
     <menuitem
-        id="fastapi_auth"
-        parent="fastapi.menu_fastapi_root"
-        sequence="50"
-        name="Authentication"
+        id="auth"
+        parent="base.menu_custom"
+        sequence="100"
+        name="Partner Authentication"
     />
-
     <menuitem
-        id="fastapi_auth_partner_menu"
-        parent="fastapi_auth"
+        id="auth_partner_menu"
+        parent="auth"
         sequence="10"
-        action="fastapi_auth_partner_action"
+        action="auth_partner_action"
     />
-
 </odoo>
