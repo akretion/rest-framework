@@ -41,6 +41,11 @@ class WizardAuthPartnerResetPassword(models.TransientModel):
                 )
 
     def confirm(self):
+        expiration_delta = None
+        if self.delay != "manually":
+            duration, key = self.delay.split("-")
+            expiration_delta = timedelta(**{key: float(duration)})
+
         for auth_partner in self.env["auth.partner"].browse(
             self._context["active_ids"]
         ):
@@ -48,5 +53,5 @@ class WizardAuthPartnerResetPassword(models.TransientModel):
                 self.template_id,
                 self,
                 callback_job=auth_partner.delayable()._on_reset_password_sent,
-                token=auth_partner._generate_token(force_expiration=self.date_validity),
+                token=auth_partner._generate_set_password_token(expiration_delta),
             )

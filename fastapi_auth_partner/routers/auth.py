@@ -124,15 +124,14 @@ def profile(
     return AuthPartnerResponse.from_auth_partner(auth_partner)
 
 
-@auth_router.get("/auth/impersonate/{auth_partner_id}/{token}")
+@auth_router.get("/auth/impersonate/{token}")
 def impersonate(
-    auth_partner_id: int,
     token: str,
     env: Annotated[Environment, Depends(odoo_env)],
     endpoint: Annotated[FastapiEndpoint, Depends(fastapi_endpoint)],
 ) -> RedirectResponse:
     helper = env["fastapi.auth.service"].new({"directory_id": endpoint.directory_id})
-    auth_partner = helper._impersonate(auth_partner_id, token)
+    auth_partner = helper._impersonate(token)
     base = endpoint.public_url or (
         env["ir.config_parameter"].sudo().get_param("web.base.url") + endpoint.root_path
     )
@@ -159,12 +158,8 @@ class AuthService(models.AbstractModel):
     def _login(self, data):
         return self.env["auth.partner"]._login(self.directory_id, **data.dict())
 
-    def _impersonate(self, auth_partner_id, token):
-        return (
-            self.env["auth.partner"]
-            .sudo()
-            ._impersonating(self.directory_id, auth_partner_id, token)
-        )
+    def _impersonate(self, token):
+        return self.env["auth.partner"].sudo()._impersonating(self.directory_id, token)
 
     def _logout(self):
         pass

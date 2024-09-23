@@ -29,6 +29,6 @@
         "demo/auth_partner_demo.xml",
     ],
     "external_dependencies": {
-        "python": ["itsdangerous"],
+        "python": ["itsdangerous", "pyjwt"],
     },
 }

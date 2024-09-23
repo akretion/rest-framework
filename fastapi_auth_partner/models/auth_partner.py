@@ -49,7 +49,7 @@ class AuthPartner(models.Model):
             self.env["ir.config_parameter"].sudo().get_param("web.base.url")
             + endpoint.root_path
         )
-        return f"{base}/auth/impersonate/{self.id}/{token}"
+        return f"{base}/auth/impersonate/{token}"
 
     def _get_impersonate_action(self, token, **kwargs):
         # Get the endpoint from a wizard

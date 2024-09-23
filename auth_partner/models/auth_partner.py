@@ -1,25 +1,18 @@
 # Copyright 2020 Akretion
 # License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl).
 import logging
-from datetime import datetime, timedelta
+from datetime import timedelta
 
 import passlib
 
 from odoo import _, api, fields, models
-from odoo.exceptions import AccessDenied, UserError
-
-from odoo.addons.auth_signup.models.res_partner import random_token
+from odoo.exceptions import AccessDenied
 
 # please read passlib great documentation
 # https://passlib.readthedocs.io
 # https://passlib.readthedocs.io/en/stable/narr/quickstart.html#choosing-a-hash
 # be carefull odoo requirements use an old version of passlib
-# TODO: replace with a JWT token
 DEFAULT_CRYPT_CONTEXT = passlib.context.CryptContext(["pbkdf2_sha512"])
-DEFAULT_CRYPT_CONTEXT_TOKEN = passlib.context.CryptContext(
-    ["pbkdf2_sha512"], pbkdf2_sha512__salt_size=0
-)
-
 
 _logger = logging.getLogger(__name__)
 
@@ -45,10 +38,6 @@ class AuthPartner(models.Model):
     login = fields.Char(compute="_compute_login", store=True, required=True, index=True)
     password = fields.Char(compute="_compute_password", inverse="_inverse_password")
     encrypted_password = fields.Char(index=True)
-    token_set_password_encrypted = fields.Char()
-    token_expiration = fields.Datetime()
-    token_impersonating_encrypted = fields.Char()
-    token_impersonating_expiration = fields.Datetime()
     nbr_pending_reset_sent = fields.Integer(
         index=True,
         help=(
@@ -64,8 +53,10 @@ class AuthPartner(models.Model):
     date_last_sucessfull_reset_pwd = fields.Datetime(
         help="Date of the last sucessfull password reset"
     )
+    date_last_impersonation = fields.Datetime(
+        help="Date of the last sucessfull impersonation"
+    )
 
-    token_mail_validation_encrypted = fields.Char()
     mail_verified = fields.Boolean(
         help="This field is set to True when the user has clicked on the link sent by email"
     )
@@ -158,9 +149,9 @@ class AuthPartner(models.Model):
         )
         auth_partner = partner.auth_partner_ids
         directory._send_mail(
-            "invite_validate_email",
+            "validate_email",
             auth_partner,
-            token=auth_partner._generate_token_mail_validation(),
+            token=auth_partner._generate_validate_email_token(),
         )
         return auth_partner
 
@@ -191,31 +182,17 @@ class AuthPartner(models.Model):
         return auth_partner
 
     @api.model
-    def _validate_email(self, directory, token_mail_validation):
-        hashed_token = self._encrypt_token(token_mail_validation)
-        auth_partner = self.search(
-            [
-                ("token_mail_validation_encrypted", "=", hashed_token),
-                ("directory_id", "=", directory.id),
-            ]
-        )
-        if auth_partner:
-            auth_partner.write(
-                {
-                    "token_mail_validation_encrypted": False,
-                    "mail_verified": True,
-                }
-            )
-            return auth_partner
-        else:
-            raise UserError(_("Invalid Token, please request a new one"))
+    def _validate_email(self, directory, token):
+        auth_partner = directory._decode_token(token, "validate_email")
+        auth_partner.write({"mail_verified": True})
+        return auth_partner
 
     def _get_impersonate_url(self, token, **kwargs):
         # You should override this method according to the impersonation url
         # your framework is using
 
         base = self.env["ir.config_parameter"].sudo().get_param("web.base.url")
-        url = f"{base}/auth/impersonate/{self.id}/{token}"
+        url = f"{base}/auth/impersonate/{token}"
         return url
 
     def _get_impersonate_action(self, token, **kwargs):
@@ -230,17 +207,7 @@ class AuthPartner(models.Model):
         if self.env.user not in self.impersonating_user_ids:
             raise AccessDenied(_("You are not allowed to impersonate this user"))
 
-        token = random_token()
-        expiration = datetime.now() + timedelta(
-            minutes=self.directory_id.impersonating_token_duration
-        )
-        self.write(
-            {
-                "token_impersonating_encrypted": self._encrypt_token(token),
-                "token_impersonating_expiration": expiration,
-            }
-        )
-
+        token = self._generate_impersonating_token()
         return self._get_impersonate_action(token)
 
     @api.depends_context("uid")
@@ -248,29 +215,19 @@ class AuthPartner(models.Model):
         for record in self:
             record.user_can_impersonate = self.env.user in record.impersonating_user_ids
 
-    def _impersonating(self, directory, auth_partner_id, token):
-        hashed_token = self._encrypt_token(token)
-        auth_partner = self.search(
-            [
-                ("id", "=", auth_partner_id),
-                ("token_impersonating_encrypted", "=", hashed_token),
-                ("directory_id", "=", directory.id),
-            ]
+    @api.model
+    def _impersonating(self, directory, token):
+        partner_auth = directory._decode_token(
+            token,
+            "impersonating",
+            key_salt=lambda auth_partner: (
+                auth_partner.date_last_impersonation.isoformat()
+                if auth_partner.date_last_impersonation
+                else "never"
+            ),
         )
-        if (
-            auth_partner
-            and auth_partner.token_impersonating_expiration > datetime.now()
-        ):
-            auth_partner.write(
-                {
-                    "token_impersonating_encrypted": False,
-                    "token_impersonating_expiration": False,
-                }
-            )
-
-            return auth_partner
-        else:
-            raise UserError(_("Invalid Token, please request a new one"))
+        partner_auth.date_last_impersonation = fields.Datetime.now()
+        return partner_auth
 
     def _on_reset_password_sent(self):
         self.ensure_one()
@@ -281,10 +238,10 @@ class AuthPartner(models.Model):
     def _send_invite(self):
         self.ensure_one()
         self.directory_id._send_mail(
-            "invite_set_password",
+            "set_password",
             self,
             callback_job=self.delayable()._on_reset_password_sent(),
-            token=self._generate_token(),
+            token=self._generate_set_password_token(),
         )
 
     def send_invite(self):
@@ -293,57 +250,53 @@ class AuthPartner(models.Model):
 
     def _request_reset_password(self):
         return self.directory_id._send_mail(
-            "request_reset_password",
+            "reset_password",
             self,
             callback_job=self.delayable()._on_reset_password_sent(),
-            token=self._generate_token(),
+            token=self._generate_set_password_token(),
         )
 
-    def _set_password(self, directory, token_set_password, password):
-        hashed_token = self._encrypt_token(token_set_password)
-        auth_partner = self.search(
-            [
-                ("token_set_password_encrypted", "=", hashed_token),
-                ("directory_id", "=", directory.id),
-            ]
+    def _set_password(self, directory, token, password):
+        auth_partner = directory._decode_token(
+            token,
+            "set_password",
+            key_salt=lambda auth_partner: auth_partner.encrypted_password or "empty",
         )
-        if auth_partner and auth_partner.token_expiration > datetime.now():
-            auth_partner.write(
-                {
-                    "password": password,
-                    "token_set_password_encrypted": False,
-                    "token_expiration": False,
-                    "mail_verified": True,
-                }
-            )
-            auth_partner.date_last_sucessfull_reset_pwd = fields.Datetime.now()
-            auth_partner.nbr_pending_reset_sent = 0
-            return auth_partner
-        else:
-            raise UserError(_("Invalid Token, please request a new one"))
-
-    def _generate_token(self, force_expiration=None):
-        expiration = force_expiration or (
-            datetime.now()
-            + timedelta(minutes=self.directory_id.set_password_token_duration)
-        )
-        token = random_token()
-        self.write(
+        auth_partner.write(
             {
-                "token_set_password_encrypted": self._encrypt_token(token),
-                "token_expiration": expiration,
+                "password": password,
+                "mail_verified": True,
             }
         )
-        return token
+        auth_partner.date_last_sucessfull_reset_pwd = fields.Datetime.now()
+        auth_partner.nbr_pending_reset_sent = 0
+        return auth_partner
 
-    def _generate_token_mail_validation(self):
-        token = random_token()
-        self.write(
-            {
-                "token_mail_validation_encrypted": self._encrypt_token(token),
-            }
+    def _generate_set_password_token(self, expiration_delta=None):
+        return self.directory_id._generate_token(
+            "set_password",
+            self,
+            expiration_delta
+            or timedelta(minutes=self.directory_id.set_password_token_duration),
+            key_salt=self.encrypted_password or "empty",
         )
-        return token
 
-    def _encrypt_token(self, token):
-        return DEFAULT_CRYPT_CONTEXT_TOKEN.hash(token)
+    def _generate_validate_email_token(self):
+        return self.directory_id._generate_token(
+            # 30 days seem to be a good value, no need for configuration
+            "validate_email",
+            self,
+            timedelta(days=30),
+        )
+
+    def _generate_impersonating_token(self):
+        return self.directory_id._generate_token(
+            "impersonating",
+            self,
+            timedelta(minutes=self.directory_id.impersonating_token_duration),
+            key_salt=(
+                self.date_last_impersonation.isoformat()
+                if self.date_last_impersonation
+                else "never"
+            ),
+        )

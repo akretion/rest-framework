@@ -4,7 +4,7 @@
         <field name="model">auth.directory</field>
         <field name="inherit_id" ref="auth_partner.auth_directory_view_form" />
         <field name="arch" type="xml">
-            <field name="invite_validate_email_template_id" position="after">
+            <field name="validate_email_template_id" position="after">
                 <field name="cookie_secret_key" />
                 <field name="cookie_duration" />
                 <field name="sliding_session" />

@@ -164,7 +164,7 @@ class TestAuthPartner(TransactionCase, MockEmail):
 
     def test_validate_email_ok(self):
         self.assertFalse(self.auth_partner.mail_verified)
-        token = self.auth_partner._generate_token_mail_validation()
+        token = self.auth_partner._generate_validate_email_token()
         self.auth_partner._validate_email(self.directory, token)
         self.assertTrue(self.auth_partner.mail_verified)
 
@@ -193,9 +193,7 @@ class TestAuthPartner(TransactionCase, MockEmail):
         ).impersonate()
         token = action["url"].split("/")[-1]
 
-        auth_partner = self.auth_partner._impersonating(
-            self.directory, self.auth_partner.id, token
-        )
+        auth_partner = self.env["auth.partner"]._impersonating(self.directory, token)
         self.assertEqual(auth_partner, self.auth_partner)
 
     def test_impersonate_once(self):
@@ -204,22 +202,18 @@ class TestAuthPartner(TransactionCase, MockEmail):
         ).impersonate()
         token = action["url"].split("/")[-1]
 
-        self.auth_partner._impersonating(self.directory, self.auth_partner.id, token)
+        self.env["auth.partner"]._impersonating(self.directory, token)
         with self.assertRaisesRegex(UserError, "Invalid Token"):
-            self.auth_partner._impersonating(
-                self.directory, self.auth_partner.id, token
-            )
+            self.env["auth.partner"]._impersonating(self.directory, token)
 
-    def test_impersonate_wrong_auth_partner(self):
+    def test_impersonate_wrong_directory(self):
         action = self.auth_partner.with_user(
             self.env.ref("base.user_admin")
         ).impersonate()
         token = action["url"].split("/")[-1]
 
         with self.assertRaisesRegex(UserError, "Invalid Token"):
-            self.auth_partner._impersonating(
-                self.directory, self.other_auth_partner.id, token
-            )
+            self.env["auth.partner"]._impersonating(self.other_directory, token)
 
     def test_impersonate_wrong_user(self):
         with self.assertRaisesRegex(AccessDenied, "not allowed to impersonate"):
@@ -233,9 +227,7 @@ class TestAuthPartner(TransactionCase, MockEmail):
         token = action["url"].split("/")[-1]
 
         with freeze_time(datetime.now() + timedelta(hours=1)):
-            self.auth_partner._impersonating(
-                self.directory, self.auth_partner.id, token
-            )
+            self.env["auth.partner"]._impersonating(self.directory, token)
 
     def test_impersonate_expired_token(self):
         self.directory.impersonating_token_duration = 100
@@ -247,13 +239,13 @@ class TestAuthPartner(TransactionCase, MockEmail):
         with freeze_time(datetime.now() + timedelta(hours=2)), self.assertRaisesRegex(
             UserError, "Invalid Token"
         ):
-            self.auth_partner._impersonating(
-                self.directory, self.auth_partner.id, token
-            )
+            self.env["auth.partner"]._impersonating(self.directory, token)
 
     def test_set_password_ok(self):
         self.auth_partner._set_password(
-            self.directory, self.auth_partner._generate_token(), "ResetSecret"
+            self.directory,
+            self.auth_partner._generate_set_password_token(),
+            "ResetSecret",
         )
         auth_partner = self.env["auth.partner"]._login(
             self.directory, login="partner-auth@example.org", password="ResetSecret"
@@ -265,14 +257,14 @@ class TestAuthPartner(TransactionCase, MockEmail):
             self.auth_partner._set_password(self.directory, "wrong", "ResetSecret")
 
     def test_set_password_once(self):
-        token = self.auth_partner._generate_token()
+        token = self.auth_partner._generate_set_password_token()
         self.auth_partner._set_password(self.directory, token, "ResetSecret")
         with self.assertRaisesRegex(UserError, "Invalid Token"):
             self.auth_partner._set_password(self.directory, token, "ResetSecret")
 
     def test_set_password_not_expired_token(self):
         self.directory.set_password_token_duration = 100
-        token = self.auth_partner._generate_token()
+        token = self.auth_partner._generate_set_password_token()
 
         with freeze_time(datetime.now() + timedelta(hours=1)):
             self.auth_partner._set_password(self.directory, token, "ResetSecret")
@@ -284,7 +276,7 @@ class TestAuthPartner(TransactionCase, MockEmail):
 
     def test_set_password_expired_token(self):
         self.directory.set_password_token_duration = 100
-        token = self.auth_partner._generate_token()
+        token = self.auth_partner._generate_set_password_token()
 
         with freeze_time(datetime.now() + timedelta(hours=2)), self.assertRaisesRegex(
             UserError, "Invalid Token"
@@ -332,14 +324,10 @@ class TestAuthPartner(TransactionCase, MockEmail):
         self.assertEqual(len(new_mails), 1)
         self.assertEqual(new_mails.subject, "Reset Password")
         token = new_mails.body.split("token=")[1].split('">')[0]
-
-        with self.new_mails() as new_mails:
-            self.auth_partner._request_reset_password()
-        self.assertEqual(len(new_mails), 1)
-        self.assertEqual(new_mails.subject, "Reset Password")
+        self.auth_partner._set_password(self.directory, token, "ResetSecret")
 
         with self.assertRaisesRegex(UserError, "Invalid Token"):
-            self.auth_partner._set_password(self.directory, token, "ResetSecret")
+            self.auth_partner._set_password(self.directory, token, "ResetSecret2")
 
     def test_send_invite_set_password_ok(self):
         with self.new_mails() as new_mails:
@@ -362,12 +350,7 @@ class TestAuthPartner(TransactionCase, MockEmail):
         self.assertEqual(new_mails.subject, "Welcome")
 
         token = new_mails.body.split("token=")[1].split('">')[0]
-
-        with self.new_mails() as new_mails:
-            self.auth_partner._send_invite()
-        self.assertEqual(len(new_mails), 1)
-        self.assertEqual(new_mails.subject, "Welcome")
-        self.assertIn("your account have been created", new_mails.body)
+        self.auth_partner._set_password(self.directory, token, "ResetSecret")
 
         with self.assertRaisesRegex(UserError, "Invalid Token"):
-            self.auth_partner._set_password(self.directory, token, "ResetSecret")
+            self.auth_partner._set_password(self.directory, token, "ResetSecret2")

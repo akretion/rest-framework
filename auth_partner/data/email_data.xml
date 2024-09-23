@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <odoo noupdate="1">
-    <record id="email_request_reset_password" model="mail.template">
+    <record id="email_reset_password" model="mail.template">
         <field name="name">Auth Directory: Reset Password</field>
         <field name="email_from">noreply@example.org</field>
         <field name="subject">Reset Password</field>
@@ -21,7 +21,7 @@
         </field>
     </record>
 
-    <record id="email_invite_set_password" model="mail.template">
+    <record id="email_set_password" model="mail.template">
         <field name="name">Auth Directory: Set Password</field>
         <field name="email_from">noreply@example.org</field>
         <field name="subject">Welcome</field>
@@ -43,7 +43,7 @@
         </field>
     </record>
 
-    <record id="email_invite_validate_email" model="mail.template">
+    <record id="email_validate_email" model="mail.template">
         <field name="name">Auth Directory: Validate Email</field>
         <field name="email_from">noreply@example.org</field>
         <field name="subject">Welcome</field>

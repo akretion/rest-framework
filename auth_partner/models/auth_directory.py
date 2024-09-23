@@ -2,6 +2,9 @@
 # Copyright 2020 Odoo SA (some code have been inspired from res_users code)
 # License AGPL-3.0 or later (http://www.gnu.org/licenses/agpl).
 
+from datetime import datetime, timezone
+
+import jwt
 
 from odoo import _, fields, models
 from odoo.exceptions import UserError
@@ -19,32 +22,32 @@ class AuthDirectory(models.Model):
         default=1440, help="In minute, default 1440 minutes => 24h", required=True
     )
     impersonating_token_duration = fields.Integer(
-        default=1, help="In minute, default 1 minute", required=True
+        default=60, help="In seconds, default 60 seconds", required=True
     )
-    request_reset_password_template_id = fields.Many2one(
+    reset_password_template_id = fields.Many2one(
         "mail.template",
         "Mail Template Forget Password",
         required=True,
         default=lambda self: self.env.ref(
-            "auth_partner.email_request_reset_password",
+            "auth_partner.email_reset_password",
             raise_if_not_found=False,
         ),
     )
-    invite_set_password_template_id = fields.Many2one(
+    set_password_template_id = fields.Many2one(
         "mail.template",
         "Mail Template New Password",
         required=True,
         default=lambda self: self.env.ref(
-            "auth_partner.email_invite_set_password",
+            "auth_partner.email_set_password",
             raise_if_not_found=False,
         ),
     )
-    invite_validate_email_template_id = fields.Many2one(
+    validate_email_template_id = fields.Many2one(
         "mail.template",
         "Mail Template Validate Email",
         required=True,
         default=lambda self: self.env.ref(
-            "auth_partner.email_invite_validate_email",
+            "auth_partner.email_validate_email",
             raise_if_not_found=False,
         ),
     )
@@ -112,3 +115,56 @@ class AuthDirectory(models.Model):
         )
 
         return f"Mail {template} sent to {auth_partner.login}"
+
+    def _generate_token(self, action, auth_partner, expiration_delta, key_salt=""):
+        return jwt.encode(
+            {
+                "exp": datetime.now(tz=timezone.utc) + expiration_delta,
+                "aud": str(self.id),
+                "action": action,
+                "ap": auth_partner.id,
+            },
+            self.cookie_secret_key + key_salt,
+            algorithm="HS256",
+        )
+
+    def _decode_token(
+        self,
+        token,
+        action,
+        key_salt=None,
+    ):
+        key = self.cookie_secret_key
+        if key_salt:
+            try:
+                object = jwt.decode(
+                    token, algorithms=["HS256"], options={"verify_signature": False}
+                )
+            except jwt.PyJWTError as e:
+                raise UserError(_("Invalid Token")) from e
+            probable_auth_partner = self.env["auth.partner"].browse(object["ap"])
+            if not probable_auth_partner:
+                raise UserError(_("Invalid Token"))
+            key += key_salt(probable_auth_partner)
+
+        try:
+            object = jwt.decode(
+                token,
+                key,
+                audience=str(self.id),
+                options={"require": ["exp", "aud", "ap", "action"]},
+                algorithms=["HS256"],
+            )
+        except jwt.PyJWTError as e:
+            raise UserError(_("Invalid Token")) from e
+
+        auth_partner = self.env["auth.partner"].browse(object["ap"])
+
+        if (
+            object["action"] != action
+            or not auth_partner
+            or auth_partner.directory_id != self
+        ):
+            raise UserError(_("Invalid token"))
+
+        return auth_partner
