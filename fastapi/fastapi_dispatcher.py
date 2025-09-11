@@ -31,9 +31,10 @@ class FastApiDispatcher(Dispatcher):
         # TODO store the env into contextvar to be used by the odoo_env
         # depends method
         with fastapi_app_pool.get_app(env=request.env, root_path=path) as app:
+            endpoint_id = request.env["fastapi.endpoint"].sudo()._get_id_for_path(path)
             uid = request.env["fastapi.endpoint"].sudo().get_uid(path)
             data = BytesIO()
-            with self._manage_odoo_env(uid):
+            with self._manage_odoo_env(uid, endpoint_id):
                 for r in app(environ, self._make_response):
                     data.write(r)
                 if self.inner_exception:
@@ -100,18 +101,19 @@ class FastApiDispatcher(Dispatcher):
         return environ
 
     @contextmanager
-    def _manage_odoo_env(self, uid=None):
+    def _manage_odoo_env(self, uid=None, endpoint_id=None):
         env = request.env
         accept_language = request.httprequest.headers.get("Accept-language")
-        context = env.context
         if accept_language:
             lang = (
                 env["res.lang"].sudo()._get_lang_from_accept_language(accept_language)
             )
             if lang:
-                env = env(context=dict(context, lang=lang))
+                env = env(context=dict(env.context, lang=lang))
         if uid:
             env = env(user=uid)
+        if endpoint_id:
+            env = env(context=dict(env.context, fastapi_endpoint_id=endpoint_id))
         token = odoo_env_ctx.set(env)
         try:
             yield
