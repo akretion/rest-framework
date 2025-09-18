@@ -27,7 +27,7 @@
     <!-- create a basic group providing the minimal access rights to retrieve
      the user running the endpoint handlers and performs authentication -->
     <record id="group_fastapi_endpoint_runner" model="res.groups">
-        <field name="name">FastAPI Endpoint Runner</field>
-        <field name="category_id" ref="module_category_fastapi" />
+        <field name="name">FastAPI</field>
+        <field name="category_id" ref="base.module_category_user_type" />
     </record>
 </odoo>

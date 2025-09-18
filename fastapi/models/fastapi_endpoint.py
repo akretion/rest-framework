@@ -20,7 +20,6 @@ _logger = logging.getLogger(__name__)
 
 
 class FastapiEndpoint(models.Model):
-
     _name = "fastapi.endpoint"
     _inherit = "endpoint.route.sync.mixin"
     _description = "FastAPI Endpoint"
@@ -39,11 +38,18 @@ class FastapiEndpoint(models.Model):
         copy=False,
     )
     app: str = fields.Selection(selection=[], required=True)
+
+    def _get_user_id_domain(self):
+        fastapi_group_id = self.env["ir.model.data"]._xmlid_to_res_id(
+            "fastapi.group_fastapi_endpoint_runner"
+        )
+        return f"[('groups_id', 'in', [{fastapi_group_id}])]"
+
     user_id = fields.Many2one(
         comodel_name="res.users",
         string="User",
         help="The user to use to execute the API calls.",
-        default=lambda self: self.env.ref("base.public_user"),
+        domain=_get_user_id_domain,
     )
     docs_url: str = fields.Char(compute="_compute_urls")
     redoc_url: str = fields.Char(compute="_compute_urls")
