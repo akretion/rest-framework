@@ -20,7 +20,6 @@ _logger = logging.getLogger(__name__)
 
 
 class FastapiEndpoint(models.Model):
-
     _name = "fastapi.endpoint"
     _inherit = "endpoint.route.sync.mixin"
     _description = "FastAPI Endpoint"
@@ -144,7 +143,7 @@ class FastapiEndpoint(models.Model):
         if refresh_fastapi_app:
             self._reset_app()
         if "user_id" in vals:
-            self.get_uid.clear_cache(self)
+            self.get_path_infos.clear_cache(self)
         return False
 
     @api.model
@@ -302,11 +301,11 @@ class FastapiEndpoint(models.Model):
 
     @api.model
     @tools.ormcache("path")
-    def get_uid(self, path):
+    def get_path_infos(self, path):
         record = self._get_endpoint(path)
         if not record:
             return None
-        return record.user_id.id
+        return record.user_id.id, record.id, record.app
 
     def _get_app(self) -> FastAPI:
         app = FastAPI(**self._prepare_fastapi_app_params())
