@@ -9,7 +9,7 @@
     "license": "AGPL-3",
     "summary": "Log API requests in database",
     "category": "Tools",
-    "depends": ["web"],
+    "depends": ["web", "mail"],
     "website": "https://github.com/OCA/rest-framework",
     "data": [
         "data/ir_config_parameter.xml",
